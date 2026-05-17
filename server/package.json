@@ -1,0 +1,26 @@
+{
+  "name": "x402-shop-server",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "tsx src/index.ts"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.13.7",
+    "@x402-avm/avm": "latest",
+    "@x402-avm/core": "latest",
+    "@x402-avm/hono": "latest",
+    "better-sqlite3": "^9.4.3",
+    "dotenv": "^16.4.5",
+    "hono": "^4.6.3",
+    "uuid": "^10.0.0"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.11",
+    "@types/node": "^20.0.0",
+    "@types/uuid": "^10.0.0",
+    "tsx": "^4.7.0",
+    "typescript": "^5.4.0"
+  }
+}
