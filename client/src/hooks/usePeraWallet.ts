@@ -11,7 +11,7 @@ export interface WalletState {
 export function usePeraWallet() {
   const peraWallet = useRef(
     new PeraWalletConnect({
-      network: "testnet",
+      chainId: 416002,
       shouldShowSignTxnToast: true,
     })
   );

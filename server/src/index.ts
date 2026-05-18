@@ -5,9 +5,16 @@ import { cors } from "hono/cors";
 import { paymentMiddleware, x402ResourceServer } from "@x402-avm/hono";
 import { registerExactAvmScheme } from "@x402-avm/avm/exact/server";
 import { HTTPFacilitatorClient } from "@x402-avm/core/server";
-import { ALGORAND_TESTNET_CAIP2, USDC_TESTNET_ASA_ID } from "@x402-avm/avm";
+// import { ALGORAND_TESTNET_CAIP2, USDC_TESTNET_ASA_ID } from "@x402-avm/avm";
 import { v4 as uuidv4 } from "uuid";
 import { db, initDb } from "./db.js";
+import {
+  ALGORAND_TESTNET_CAIP2,  // keep for registerExactAvmScheme
+  USDC_TESTNET_ASA_ID
+} from "@x402-avm/avm";
+
+import type { Network } from "@x402-avm/core/types"; // add this import at top
+
 
 initDb();
 
@@ -16,7 +23,7 @@ const app = new Hono();
 app.use(
   "*",
   cors({
-    origin: ["http://localhost:5173", "http://localhost:3000"],
+    origin: ["http://localhost:5174", "http://localhost:3000"],
     allowMethods: ["GET", "POST", "OPTIONS"],
     allowHeaders: ["Content-Type", "X-PAYMENT", "X-PAYMENT-RESPONSE"],
     exposeHeaders: ["X-PAYMENT-REQUIRED", "X-PAYMENT-RESPONSE", "Content-Disposition"],
@@ -33,10 +40,71 @@ if (!PAY_TO) {
 
 // ── x402 setup ──────────────────────────────────────────────────────────────
 const facilitatorClient = new HTTPFacilitatorClient({ url: FACILITATOR_URL });
+// const resourceServer = new x402ResourceServer(facilitatorClient);
+// registerExactAvmScheme(resourceServer);
+
 const resourceServer = new x402ResourceServer(facilitatorClient);
-registerExactAvmScheme(resourceServer);
+registerExactAvmScheme(resourceServer, {
+  networks: [
+    ALGORAND_TESTNET_CAIP2,   // "algorand:SGO1..." — for CAIP2 routes
+    "algorand-testnet" as Network,        // V1 string — for V1 routes
+  ]
+});
 
 // Build per-product payment routes dynamically from DB
+// function buildRoutes() {
+//   const products = db.prepare("SELECT id, price_usd FROM products").all() as {
+//     id: string;
+//     price_usd: number;
+//   }[];
+
+//   const routes: Record<string, object> = {};
+//   for (const p of products) {
+//     routes[`POST /api/buy/${p.id}`] = {
+//       accepts: {
+//         scheme: "exact",
+//         network: ALGORAND_TESTNET_CAIP2,
+//         payTo: PAY_TO,
+//         price: `$${p.price_usd.toFixed(2)}`,
+//         extra: { asset: USDC_TESTNET_ASA_ID },
+//       },
+//       description: `Purchase product ${p.id}`,
+//     };
+//   }
+//   return routes;
+// }
+
+
+// function buildRoutes() {
+//   const products = db.prepare("SELECT id, price_usd FROM products").all() as {
+//     id: string;
+//     price_usd: number;
+//   }[];
+
+//   const routes: Record<string, object> = {};
+
+//   for (const p of products) {
+//     // Convert USD price → USDC micro-units (6 decimals)
+//     // $9.99 → 9990000 (9.99 * 10^6)
+//     const microAmount = Math.round(p.price_usd * 1_000_000).toString();
+
+//     routes[`POST /api/buy/${p.id}`] = {
+//       accepts: [{                              // ✅ array not object
+//         scheme: "exact",
+//         network: ALGORAND_TESTNET_CAIP2,
+//         payTo: PAY_TO,
+//         price: {                              // ✅ object format not "$x.xx" string
+//           amount: microAmount,               // e.g. "9990000" for $9.99
+//           asset: USDC_TESTNET_ASA_ID,        // "10458941"
+//         },
+//       }],
+//       description: `Purchase product ${p.id}`,
+//     };
+//   }
+
+//   return routes;
+// }
+
 function buildRoutes() {
   const products = db.prepare("SELECT id, price_usd FROM products").all() as {
     id: string;
@@ -44,18 +112,25 @@ function buildRoutes() {
   }[];
 
   const routes: Record<string, object> = {};
+
   for (const p of products) {
+    // $4.99 → "4990000" (multiply by 10^6 for USDC 6 decimals)
+    const microAmount = Math.round(p.price_usd * 1_000_000).toString();
+
     routes[`POST /api/buy/${p.id}`] = {
-      accepts: {
+      accepts: [{
         scheme: "exact",
-        network: ALGORAND_TESTNET_CAIP2,
+        network: ALGORAND_TESTNET_CAIP2,  // ✅ back to CAIP2
         payTo: PAY_TO,
-        price: `$${p.price_usd.toFixed(2)}`,
-        extra: { asset: USDC_TESTNET_ASA_ID },
-      },
+        price: {
+          amount: microAmount,
+          asset: USDC_TESTNET_ASA_ID,
+        },
+      }],
       description: `Purchase product ${p.id}`,
     };
   }
+
   return routes;
 }
 

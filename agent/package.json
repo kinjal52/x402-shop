@@ -1,0 +1,23 @@
+{
+  "name": "x402-agent",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "tsx agent.ts"
+  },
+  "dependencies": {
+    "@x402-avm/avm": "latest",
+    "@x402-avm/fetch": "latest",
+    "algosdk": "^2.9.0",
+    "dotenv": "^16.4.5"
+  },
+  "devDependencies": {
+    "@types/node": "^25.8.0",
+    "tsx": "^4.7.0",
+    "typescript": "^5.4.0"
+  },
+  "author": "",
+  "license": "ISC",
+  "description": ""
+}

@@ -4,7 +4,8 @@ import { PaymentModal } from "./PaymentModal";
 import { useX402Payment } from "../hooks/useX402Payment";
 import type { Product } from "../types";
 import type { PeraWalletConnect } from "@perawallet/connect";
-
+import { useAgentPayment } from "../hooks/useAgentPayment";
+import { AgentPanel } from "./AgentPanel";
 interface Props {
   walletAddress: string | null;
   walletConnected: boolean;
@@ -19,6 +20,10 @@ export function ShopPage({ walletAddress, walletConnected, peraWallet }: Props) 
   const [filter, setFilter] = useState("All");
 
   const { purchase, status, error: payError, result, reset } = useX402Payment();
+
+  const { runAgent, status: agentStatus, logs, purchases, totalSpent, reset: resetAgent } = useAgentPayment();
+  const [agentMode, setAgentMode] = useState(false);
+  const [showAgentPanel, setShowAgentPanel] = useState(false);
 
   useEffect(() => {
     fetch("/api/products")
@@ -73,6 +78,77 @@ export function ShopPage({ walletAddress, walletConnected, peraWallet }: Props) 
 
       {/* Filter */}
       <div style={s.filterRow}>
+        {/* Agent mode toggle */}
+        <div style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          background: agentMode ? "#1a1830" : "#18181b",
+          border: `1px solid ${agentMode ? "#2d2860" : "#2a2a35"}`,
+          borderRadius: 12,
+          padding: "12px 20px",
+          marginBottom: 20,
+          transition: "all 0.2s",
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <span style={{ fontSize: 24 }}>🤖</span>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 500, color: "#e8e8f0" }}>
+                AI Agent Mode
+              </div>
+              <div style={{ fontSize: 12, color: "#5a5a72" }}>
+                Agent browses, decides, and pays autonomously — no human approval
+              </div>
+            </div>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            {agentMode && (
+              <button
+                style={{
+                  background: "#7c6fcd",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: 8,
+                  padding: "8px 18px",
+                  fontSize: 13,
+                  fontWeight: 500,
+                  cursor: "pointer",
+                }}
+                onClick={() => {
+                  setShowAgentPanel(true);
+                  runAgent(products);
+                }}
+              >
+                ▶ Run Agent Now
+              </button>
+            )}
+            {/* Toggle switch */}
+            <div
+              onClick={() => setAgentMode(!agentMode)}
+              style={{
+                width: 44,
+                height: 24,
+                borderRadius: 12,
+                background: agentMode ? "#7c6fcd" : "#2a2a35",
+                cursor: "pointer",
+                position: "relative" as const,
+                transition: "background 0.2s",
+                flexShrink: 0,
+              }}
+            >
+              <div style={{
+                position: "absolute" as const,
+                top: 3,
+                left: agentMode ? 23 : 3,
+                width: 18,
+                height: 18,
+                borderRadius: "50%",
+                background: "#fff",
+                transition: "left 0.2s",
+              }} />
+            </div>
+          </div>
+        </div>
         {categories.map((cat) => (
           <button
             key={cat}
@@ -113,6 +189,20 @@ export function ShopPage({ walletAddress, walletConnected, peraWallet }: Props) 
           result={result}
           onConfirm={handleConfirmPayment}
           onClose={handleCloseModal}
+        />
+      )}
+
+      {/* Agent panel */}
+      {showAgentPanel && (
+        <AgentPanel
+          status={agentStatus}
+          logs={logs}
+          purchases={purchases}
+          totalSpent={totalSpent}
+          onClose={() => {
+            setShowAgentPanel(false);
+            resetAgent();
+          }}
         />
       )}
     </div>
