@@ -101,9 +101,9 @@ export function Header({ wallet, onConnect, onDisconnect, page, onPageChange }: 
       </div>
 
       {/* Testnet banner */}
-      <div style={s.banner}>
+      {/* <div style={s.banner}>
         ⚡ Demo mode — Algorand Testnet · USDC ASA 10458941 · GoPlausible facilitator
-      </div>
+      </div> */}
     </header>
   );
 }

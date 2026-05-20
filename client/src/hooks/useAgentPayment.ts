@@ -71,17 +71,77 @@ export function useAgentPayment() {
 
       let remaining = budget;
       const toBuy: Product[] = [];
+      const GROQ_API_KEY = import.meta.env.VITE_GROQ_API_KEY;
 
-      const sorted = [...allProducts]
-        .filter(p => p.rating >= 4.8)
-        .sort((a, b) => b.rating - a.rating);
+      let useFallback = !GROQ_API_KEY;
 
-      for (const product of sorted) {
-        if (product.price_usd <= remaining) {
-          toBuy.push(product);
-          remaining -= product.price_usd;
-          addLog("thinking", `   → Selected: ${product.name} ($${product.price_usd})`);
-          await sleep(300);
+      if (!GROQ_API_KEY) {
+        addLog("thinking", "⚠️ VITE_GROQ_API_KEY not found. Using fallback logic.");
+      } else {
+        try {
+          const productList = allProducts.map((p, i) =>
+            `${i + 1}. ID: ${p.id} | "${p.name}" | $${p.price_usd} USDC | ${p.pages} pages | rated ${p.rating} | ${p.description.slice(0, 80)}...`
+          ).join("\n");
+
+          const prompt = `You are an AI shopping agent with a budget of $${budget} USDC.
+Your goal: Find the best books about AI, Blockchain, or Cryptography.
+Available products:
+${productList}
+Rules:
+- Total price of selected items MUST NOT exceed $${budget} USDC.
+- Return ONLY a JSON array of product IDs to buy.
+- If nothing matches or budget is too low, return an empty array [].
+- Respond with ONLY the JSON array, no markdown formatting, no backticks, no explanation.`;
+
+          addLog("thinking", "🧠 Asking Groq LLM (llama-3.3-70b-versatile) what to buy...");
+          const groqRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${GROQ_API_KEY}`,
+            },
+            body: JSON.stringify({
+              model: "llama-3.3-70b-versatile",
+              messages: [{ role: "user", content: prompt }],
+              temperature: 0.1,
+              max_tokens: 150,
+            }),
+          });
+
+          const data = await groqRes.json() as any;
+          if (data.error) throw new Error(data.error.message || "Groq API error");
+
+          let text = data.choices?.[0]?.message?.content?.trim() || "[]";
+          text = text.replace(/```json/g, "").replace(/```/g, "").trim();
+          const ids: string[] = JSON.parse(text);
+
+          for (const id of ids) {
+            const p = allProducts.find(x => x.id === id);
+            if (p && p.price_usd <= remaining) {
+              toBuy.push(p);
+              remaining -= p.price_usd;
+              addLog("thinking", `   → LLM Chose: ${p.name} ($${p.price_usd})`);
+              await sleep(300);
+            }
+          }
+        } catch (err: any) {
+          addLog("error", `❌ LLM failed (${err.message}). Falling back to rule-based.`);
+          useFallback = true;
+        }
+      }
+
+      if (useFallback && toBuy.length === 0) {
+        const sorted = [...allProducts]
+          .filter(p => p.rating >= 4.8)
+          .sort((a, b) => b.rating - a.rating);
+
+        for (const product of sorted) {
+          if (product.price_usd <= remaining) {
+            toBuy.push(product);
+            remaining -= product.price_usd;
+            addLog("thinking", `   → Selected: ${product.name} ($${product.price_usd})`);
+            await sleep(300);
+          }
         }
       }
 
