@@ -4,7 +4,7 @@ import { PaymentModal } from "./PaymentModal";
 import { useX402Payment } from "../hooks/useX402Payment";
 import type { Product } from "../types";
 import type { PeraWalletConnect } from "@perawallet/connect";
-import { useAgentPayment } from "../hooks/useAgentPayment";
+import { useBackendAgent } from "../hooks/useBackendAgent";
 import { AgentPanel } from "./AgentPanel";
 interface Props {
   walletAddress: string | null;
@@ -21,7 +21,7 @@ export function ShopPage({ walletAddress, walletConnected, peraWallet }: Props) 
 
   const { purchase, status, error: payError, result, reset } = useX402Payment();
 
-  const { runAgent, status: agentStatus, logs, purchases, totalSpent, reset: resetAgent } = useAgentPayment();
+  const { plan, isPlanning, isExecuting, error: agentError, requestPlan, approvePlan, reset: resetAgent } = useBackendAgent();
   const [agentMode, setAgentMode] = useState(false);
   const [showAgentPanel, setShowAgentPanel] = useState(false);
 
@@ -116,10 +116,9 @@ export function ShopPage({ walletAddress, walletConnected, peraWallet }: Props) 
                 }}
                 onClick={() => {
                   setShowAgentPanel(true);
-                  runAgent(products);
                 }}
               >
-                ▶ Run Agent Now
+                ▶ Open Agent Panel
               </button>
             )}
             {/* Toggle switch */}
@@ -195,10 +194,12 @@ export function ShopPage({ walletAddress, walletConnected, peraWallet }: Props) 
       {/* Agent panel */}
       {showAgentPanel && (
         <AgentPanel
-          status={agentStatus}
-          logs={logs}
-          purchases={purchases}
-          totalSpent={totalSpent}
+          plan={plan}
+          isPlanning={isPlanning}
+          isExecuting={isExecuting}
+          error={agentError}
+          requestPlan={requestPlan}
+          approvePlan={approvePlan}
           onClose={() => {
             setShowAgentPanel(false);
             resetAgent();

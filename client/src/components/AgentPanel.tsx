@@ -1,29 +1,37 @@
-import React, { useEffect, useRef } from "react";
-import type { AgentLog, AgentPurchase, AgentStatus } from "../hooks/useAgentPayment";
+import React, { useState, useEffect } from "react";
 
 interface Props {
-  status: AgentStatus;
-  logs: AgentLog[];
-  purchases: AgentPurchase[];
-  totalSpent: number;
+  plan: any;
+  isPlanning: boolean;
+  isExecuting: boolean;
+  error: string | null;
+  requestPlan: (prompt: string) => Promise<void>;
+  approvePlan: () => Promise<any>;
   onClose: () => void;
 }
 
-export function AgentPanel({ status, logs, purchases, totalSpent, onClose }: Props) {
-  const logsEndRef = useRef<HTMLDivElement>(null);
+export function AgentPanel({ plan, isPlanning, isExecuting, error, requestPlan, approvePlan, onClose }: Props) {
+  const [prompt, setPrompt] = useState("Find me beginner AI books under $25");
+  const [paymentResult, setPaymentResult] = useState<any[] | null>(null);
+  
+  const [simulatedLogs, setSimulatedLogs] = useState<string[]>([]);
 
-  // Auto-scroll logs to bottom
   useEffect(() => {
-    logsEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [logs]);
+    if (isPlanning) {
+      setSimulatedLogs(["🚀 Initializing Shopping Orchestrator..."]);
+      const t1 = setTimeout(() => setSimulatedLogs(l => [...l, "🧠 Calling Intent Agent to parse natural language..."]), 800);
+      const t2 = setTimeout(() => setSimulatedLogs(l => [...l, "🔎 Calling Recommendation Agent to analyze catalog..."]), 2000);
+      const t3 = setTimeout(() => setSimulatedLogs(l => [...l, "🛡️ Calling Budget Guard to validate hard constraints..."]), 3500);
+      return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
+    } else if (plan) {
+      setSimulatedLogs(l => [...l, "✅ Plan successfully generated."]);
+    }
+  }, [isPlanning, plan]);
 
-  const logColor = (type: AgentLog["type"]) => {
-    switch (type) {
-      case "success":  return "#22c55e";
-      case "error":    return "#ef4444";
-      case "thinking": return "#f59e0b";
-      case "paying":   return "#a89ae8";
-      default:         return "#9090a8";
+  const handleApprove = async () => {
+    const res = await approvePlan();
+    if (res?.results) {
+      setPaymentResult(res.results);
     }
   };
 
@@ -36,62 +44,106 @@ export function AgentPanel({ status, logs, purchases, totalSpent, onClose }: Pro
           <div style={s.headerLeft}>
             <span style={s.robotIcon}>🤖</span>
             <div>
-              <div style={s.title}>AI Agent</div>
-              <div style={s.subtitle}>Autonomous x402 payments</div>
+              <div style={s.title}>AI Shopping Agent</div>
+              <div style={s.subtitle}>Secure backend orchestration</div>
             </div>
           </div>
-          <div style={s.headerRight}>
-            {status === "running" && (
-              <div style={s.runningBadge}>
-                <div style={s.pulse} />
-                Running
-              </div>
-            )}
-            {status === "done" && (
-              <div style={s.doneBadge}>✅ Done</div>
-            )}
-            {status === "error" && (
-              <div style={s.errorBadge}>❌ Error</div>
-            )}
-            <button style={s.closeBtn} onClick={onClose}>✕</button>
+          <button style={s.closeBtn} onClick={onClose}>✕</button>
+        </div>
+
+        <div style={{ padding: 20 }}>
+          <div style={{ marginBottom: 15 }}>
+            <label style={{ display: 'block', fontSize: 12, color: '#a8a8b8', marginBottom: 5 }}>What do you want to buy?</label>
+            <input 
+              style={{ width: '100%', padding: '10px 12px', background: '#1a1a24', border: '1px solid #3a3a4a', color: '#fff', borderRadius: 6 }} 
+              value={prompt} 
+              onChange={e => setPrompt(e.target.value)} 
+              placeholder="E.g. find me the best react books under 10" 
+              disabled={isPlanning || isExecuting}
+            />
           </div>
+          <button 
+            style={{ width: '100%', padding: 12, background: isPlanning ? '#555' : '#7c6fcd', color: '#fff', borderRadius: 6, border: 'none', cursor: isPlanning ? 'not-allowed' : 'pointer', fontWeight: 600 }}
+            onClick={() => requestPlan(prompt)}
+            disabled={isPlanning || isExecuting}
+          >
+            {isPlanning ? "Agent is thinking..." : "Ask Agent"}
+          </button>
         </div>
 
-        {/* Live logs */}
-        <div style={s.logsBox}>
-          {logs.map(log => (
-            <div key={log.id} style={{ ...s.logLine, color: logColor(log.type) }}>
-              {log.message}
-            </div>
-          ))}
-          {status === "running" && (
-            <div style={s.cursor}>▋</div>
-          )}
-          <div ref={logsEndRef} />
-        </div>
+        {error && (
+          <div style={{ padding: '10px 20px', color: '#ef4444', fontSize: 13, background: '#2a0f0f', borderTop: '1px solid #4a1a1a' }}>
+            {error}
+          </div>
+        )}
 
-        {/* Purchases summary */}
-        {purchases.length > 0 && (
-          <div style={s.summary}>
-            <div style={s.summaryTitle}>Purchased by agent</div>
-            {purchases.map((p, i) => (
-              <div key={i} style={s.purchaseRow}>
-                <span style={s.purchaseName}>📖 {p.productName}</span>
-                <span style={s.purchaseAmount}>{p.amountPaid}</span>
+        {(isPlanning || simulatedLogs.length > 0) && !paymentResult && (
+          <div style={{ padding: '10px 20px', background: '#080810', minHeight: 120, borderTop: '1px solid #1e1e2a', borderBottom: '1px solid #1e1e2a' }}>
+            <div style={{ fontSize: 11, color: '#5a5a72', textTransform: 'uppercase', marginBottom: 8, letterSpacing: '0.5px' }}>Agent Execution Trail</div>
+            {simulatedLogs.map((log, i) => (
+              <div key={i} style={{ fontSize: 13, color: '#a89ae8', fontFamily: 'monospace', marginBottom: 4 }}>
+                {log}
               </div>
             ))}
-            {status === "done" && (
-              <div style={s.totalRow}>
-                <span style={s.totalLabel}>Total spent</span>
-                <span style={s.totalAmount}>${totalSpent.toFixed(2)} USDC</span>
+            {isPlanning && <div style={{ color: '#7c6fcd', animation: 'blink 1s infinite', display: 'inline', fontFamily: 'monospace' }}>▋</div>}
+          </div>
+        )}
+
+        {plan && !paymentResult && (
+          <div style={s.summary}>
+            <div style={s.summaryTitle}>Generated Plan</div>
+            <div style={{ fontSize: 12, color: '#a8a8b8', marginBottom: 10 }}>
+              <strong>Extracted Intent:</strong> Topics: {plan.intent.topics?.join(", ") || "Any"} · Budget: ${plan.intent.budget}
+            </div>
+            {plan.products?.map((p: any, i: number) => (
+              <div key={i} style={s.purchaseRow}>
+                <span style={s.purchaseName}>📖 {p.name}</span>
+                <span style={s.purchaseAmount}>${p.price_usd}</span>
               </div>
-            )}
+            ))}
+            
+            <div style={s.totalRow}>
+              <span style={s.totalLabel}>Total Estimated Cost</span>
+              <span style={s.totalAmount}>${plan.totalCost?.toFixed(2)} USDC</span>
+            </div>
+
+            <button 
+              style={{ width: '100%', padding: 12, background: isExecuting ? '#555' : '#22c55e', color: '#fff', borderRadius: 6, border: 'none', cursor: isExecuting ? 'not-allowed' : 'pointer', fontWeight: 600, marginTop: 15 }}
+              onClick={handleApprove}
+              disabled={isExecuting}
+            >
+              {isExecuting ? "Executing x402 Payments..." : "Approve & Pay"}
+            </button>
+          </div>
+        )}
+
+        {paymentResult && (
+          <div style={{ padding: 20, textAlign: 'center' }}>
+            <div style={{ fontSize: 40, marginBottom: 10 }}>🎉</div>
+            <div style={{ fontSize: 18, fontWeight: 600, color: '#22c55e', marginBottom: 5 }}>Payment Successful</div>
+            <div style={{ fontSize: 13, color: '#a8a8b8', marginBottom: 20 }}>The x402 Payment Tool executed your approved transaction automatically.</div>
+            
+            <div style={{ background: '#1a1a24', padding: 15, borderRadius: 8, textAlign: 'left' }}>
+              {paymentResult.map((res: any, idx: number) => (
+                <div key={idx} style={{ marginBottom: 10 }}>
+                  <div style={{ fontSize: 12, color: '#5a5a72' }}>Item {idx + 1}</div>
+                  <div style={{ fontSize: 13, color: res.success ? '#22c55e' : '#ef4444' }}>
+                    {res.success ? "✅ Paid via Algorand Testnet" : `❌ Error: ${res.error}`}
+                  </div>
+                  {res.txId && (
+                    <div style={{ fontSize: 11, color: '#7c6fcd', marginTop: 4, fontFamily: 'monospace' }}>
+                      TxID: {res.txId}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
         {/* Footer note */}
         <div style={s.footer}>
-          No human approved any of these payments · x402 + Algorand Testnet
+          x402 + Algorand Testnet · Requires Human Approval
         </div>
       </div>
     </div>

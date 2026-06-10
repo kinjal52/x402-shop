@@ -15,6 +15,8 @@ import {
 
 import type { Network } from "@x402-avm/core/types"; // add this import at top
 
+import { shoppingAgent } from "../agents/shoppingAgent.js";
+import { paymentTool } from "../agents/paymentTool.js";
 
 initDb();
 
@@ -249,6 +251,42 @@ app.get("/api/download/:token", (c) => {
 app.get("/api/health", (c) =>
   c.json({ status: "ok", network: "algorand-testnet", facilitator: FACILITATOR_URL })
 );
+
+// PHASE 5: POST /api/agent/plan
+app.post("/api/agent/plan", async (c) => {
+  const { prompt } = await c.req.json();
+  try {
+    const plan = await shoppingAgent.run(prompt);
+    
+    // Hydrate product details for the frontend
+    const products = plan.productIds.map((id: string) => 
+      db.prepare("SELECT * FROM products WHERE id = ?").get(id)
+    );
+
+    return c.json({ plan: { ...plan, products } });
+  } catch (err: any) {
+    return c.json({ error: err.message }, 400);
+  }
+});
+
+// PHASE 5: POST /api/agent/approve
+app.post("/api/agent/approve", async (c) => {
+  const { productIds } = await c.req.json();
+  // Server-side guard before executing
+  if (!Array.isArray(productIds)) return c.json({ error: "Invalid payload" }, 400);
+
+  const results = [];
+  for (const id of productIds) {
+    try {
+      const result = await paymentTool.execute({ productId: id });
+      results.push(result);
+    } catch (err: any) {
+      results.push({ success: false, error: err.message });
+    }
+  }
+
+  return c.json({ results });
+});
 
 const PORT = parseInt(process.env.PORT || "3001");
 serve({ fetch: app.fetch, port: PORT }, () => {
