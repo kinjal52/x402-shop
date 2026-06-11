@@ -4,7 +4,6 @@ import { PaymentModal } from "./PaymentModal";
 import { useX402Payment } from "../hooks/useX402Payment";
 import type { Product } from "../types";
 import type { PeraWalletConnect } from "@perawallet/connect";
-import { useBackendAgent } from "../hooks/useBackendAgent";
 import { AgentPanel } from "./AgentPanel";
 interface Props {
   walletAddress: string | null;
@@ -21,7 +20,6 @@ export function ShopPage({ walletAddress, walletConnected, peraWallet }: Props) 
 
   const { purchase, status, error: payError, result, reset } = useX402Payment();
 
-  const { plan, isPlanning, isExecuting, error: agentError, requestPlan, approvePlan, reset: resetAgent } = useBackendAgent();
   const [agentMode, setAgentMode] = useState(false);
   const [showAgentPanel, setShowAgentPanel] = useState(false);
 
@@ -76,78 +74,48 @@ export function ShopPage({ walletAddress, walletConnected, peraWallet }: Props) 
         </div>
       </div>
 
-      {/* Filter */}
-      <div style={s.filterRow}>
-        {/* Agent mode toggle */}
-        <div style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          background: agentMode ? "#1a1830" : "#18181b",
-          border: `1px solid ${agentMode ? "#2d2860" : "#2a2a35"}`,
-          borderRadius: 12,
-          padding: "12px 20px",
-          marginBottom: 20,
-          transition: "all 0.2s",
-        }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <span style={{ fontSize: 24 }}>🤖</span>
-            <div>
-              <div style={{ fontSize: 14, fontWeight: 500, color: "#e8e8f0" }}>
-                AI Agent Mode
-              </div>
-              <div style={{ fontSize: 12, color: "#5a5a72" }}>
-                Agent browses, decides, and pays autonomously — no human approval
-              </div>
+      {/* Purchase method selection */}
+      <div style={s.purchaseMethods}>
+        <div
+          style={{ ...s.methodCard, ...(agentMode ? s.methodCardActive : {}) }}
+          onClick={() => { setAgentMode(true); }}
+        >
+          <div style={s.methodIcon}>🤖</div>
+          <div>
+            <div style={s.methodTitle}>Purchase with AI Agent</div>
+            <div style={s.methodDesc}>
+              Describe what you want in plain text. The agent finds matching books,
+              calculates the total, and handles the purchase automatically.
+              A full transaction log is shown after completion.
             </div>
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             {agentMode && (
               <button
-                style={{
-                  background: "#7c6fcd",
-                  color: "#fff",
-                  border: "none",
-                  borderRadius: 8,
-                  padding: "8px 18px",
-                  fontSize: 13,
-                  fontWeight: 500,
-                  cursor: "pointer",
-                }}
-                onClick={() => {
-                  setShowAgentPanel(true);
-                }}
+                style={s.methodBtn}
+                onClick={(e) => { e.stopPropagation(); setShowAgentPanel(true); }}
               >
                 ▶ Open Agent Panel
               </button>
             )}
-            {/* Toggle switch */}
-            <div
-              onClick={() => setAgentMode(!agentMode)}
-              style={{
-                width: 44,
-                height: 24,
-                borderRadius: 12,
-                background: agentMode ? "#7c6fcd" : "#2a2a35",
-                cursor: "pointer",
-                position: "relative" as const,
-                transition: "background 0.2s",
-                flexShrink: 0,
-              }}
-            >
-              <div style={{
-                position: "absolute" as const,
-                top: 3,
-                left: agentMode ? 23 : 3,
-                width: 18,
-                height: 18,
-                borderRadius: "50%",
-                background: "#fff",
-                transition: "left 0.2s",
-              }} />
+          </div>
+        </div>
+
+        <div
+          style={{ ...s.methodCard, ...(!agentMode ? s.methodCardActive : {}) }}
+          onClick={() => { setAgentMode(false); }}
+        >
+          <div style={s.methodIcon}>🛒</div>
+          <div>
+            <div style={s.methodTitle}>Purchase Manually</div>
+            <div style={s.methodDesc}>
+              Browse the catalog, select individual books, and complete each
+              purchase yourself. You maintain full control over every transaction.
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Filter */}
+      <div style={s.filterRow}>
         {categories.map((cat) => (
           <button
             key={cat}
@@ -168,6 +136,7 @@ export function ShopPage({ walletAddress, walletConnected, peraWallet }: Props) 
             product={p}
             onBuy={handleBuy}
             walletConnected={walletConnected}
+            agentMode={agentMode}
           />
         ))}
       </div>
@@ -194,16 +163,8 @@ export function ShopPage({ walletAddress, walletConnected, peraWallet }: Props) 
       {/* Agent panel */}
       {showAgentPanel && (
         <AgentPanel
-          plan={plan}
-          isPlanning={isPlanning}
-          isExecuting={isExecuting}
-          error={agentError}
-          requestPlan={requestPlan}
-          approvePlan={approvePlan}
-          onClose={() => {
-            setShowAgentPanel(false);
-            resetAgent();
-          }}
+          onClose={() => setShowAgentPanel(false)}
+          walletAddress={walletAddress}
         />
       )}
     </div>
@@ -251,6 +212,44 @@ const s: Record<string, React.CSSProperties> = {
     display: "grid",
     gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))",
     gap: 20,
+  },
+  purchaseMethods: {
+    display: "flex",
+    gap: 12,
+    marginBottom: 24,
+    flexWrap: "wrap" as const,
+  },
+  methodCard: {
+    flex: 1,
+    minWidth: 240,
+    display: "flex",
+    gap: 14,
+    background: "#18181b",
+    border: "1px solid #2a2a35",
+    borderRadius: 12,
+    padding: "16px 18px",
+    cursor: "pointer",
+    transition: "all 0.2s",
+    opacity: 0.6,
+  },
+  methodCardActive: {
+    background: "#1a1830",
+    border: "1px solid #3d3870",
+    opacity: 1,
+  },
+  methodIcon: { fontSize: 28, flexShrink: 0, marginTop: 2 },
+  methodTitle: { fontSize: 14, fontWeight: 600, color: "#e8e8f0", marginBottom: 4 },
+  methodDesc: { fontSize: 11, color: "#808098", lineHeight: 1.6 },
+  methodBtn: {
+    marginTop: 10,
+    background: "#7c6fcd",
+    color: "#fff",
+    border: "none",
+    borderRadius: 8,
+    padding: "8px 18px",
+    fontSize: 13,
+    fontWeight: 500,
+    cursor: "pointer",
   },
   connectHint: {
     textAlign: "center",

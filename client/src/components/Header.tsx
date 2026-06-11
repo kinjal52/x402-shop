@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import type { WalletState } from "../hooks/usePeraWallet";
 
 interface Props {
@@ -9,11 +9,29 @@ interface Props {
   onPageChange: (p: "shop" | "orders") => void;
 }
 
-export function Header({ wallet, onConnect, onDisconnect, page, onPageChange }: Props) {
-  const shortAddr = wallet.address
-    ? `${wallet.address.slice(0, 6)}...${wallet.address.slice(-4)}`
-    : null;
+function CopyAddress({ address }: { address: string }) {
+  const [copied, setCopied] = useState(false);
 
+  const handleCopy = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(address);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {}
+  }, [address]);
+
+  const short = `${address.slice(0, 6)}...${address.slice(-4)}`;
+
+  return (
+    <span onClick={handleCopy} style={s.copyWrap} title="Click to copy address">
+      <span style={s.copyIcon}>{copied ? "✅" : "📋"}</span>
+      <span style={s.addrText}>{short}</span>
+      {copied && <span style={s.copiedTip}>Copied!</span>}
+    </span>
+  );
+}
+
+export function Header({ wallet, onConnect, onDisconnect, page, onPageChange }: Props) {
   const [balances, setBalances] = useState<{ algo: number; usdc: number } | null>(null);
 
   useEffect(() => {
@@ -76,7 +94,7 @@ export function Header({ wallet, onConnect, onDisconnect, page, onPageChange }: 
             <div style={s.walletRow}>
               <div style={s.walletBadge}>
                 <span style={s.dot} />
-                <span style={{ fontSize: 13, marginRight: 8 }}>{shortAddr}</span>
+                {wallet.address && <CopyAddress address={wallet.address} />}
                 {balances && (
                   <div style={s.balances}>
                     <span style={s.balanceItem}>{balances.algo.toFixed(2)} ALGO</span>
@@ -147,13 +165,14 @@ const s: Record<string, React.CSSProperties> = {
   walletBadge: {
     display: "flex",
     alignItems: "center",
-    gap: 6,
+    gap: 8,
     background: "#0f2a1a",
     border: "1px solid #1a4a2a",
     borderRadius: 8,
     padding: "6px 12px",
     color: "#22c55e",
     fontSize: 13,
+    flexWrap: "wrap" as const,
   },
   dot: {
     width: 6,
@@ -161,12 +180,38 @@ const s: Record<string, React.CSSProperties> = {
     borderRadius: "50%",
     background: "#22c55e",
     display: "inline-block",
+    flexShrink: 0,
+  },
+  copyWrap: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 5,
+    cursor: "pointer",
+    position: "relative" as const,
+    userSelect: "none" as const,
+  },
+  copyIcon: { fontSize: 13, flexShrink: 0 },
+  addrText: { fontSize: 13, color: "#22c55e", fontFamily: "monospace" },
+  copiedTip: {
+    position: "absolute" as const,
+    top: "calc(100% + 6px)",
+    left: "50%",
+    transform: "translateX(-50%)",
+    background: "#1a1830",
+    border: "1px solid #2d2860",
+    borderRadius: 4,
+    padding: "2px 8px",
+    fontSize: 11,
+    color: "#22c55e",
+    whiteSpace: "nowrap" as const,
+    zIndex: 10,
   },
   balances: {
     display: "flex",
-    gap: 8,
+    gap: 6,
     borderLeft: "1px solid #1a4a2a",
-    paddingLeft: 12,
+    paddingLeft: 10,
+    flexWrap: "wrap" as const,
   },
   balanceItem: {
     fontSize: 12,

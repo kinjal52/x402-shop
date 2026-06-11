@@ -5,9 +5,10 @@ interface Props {
   product: Product;
   onBuy: (product: Product) => void;
   walletConnected: boolean;
+  agentMode?: boolean;
 }
 
-export function ProductCard({ product, onBuy, walletConnected }: Props) {
+export function ProductCard({ product, onBuy, walletConnected, agentMode }: Props) {
   const stars = "★".repeat(Math.floor(product.rating)) + (product.rating % 1 >= 0.5 ? "½" : "");
 
   return (
@@ -39,12 +40,12 @@ export function ProductCard({ product, onBuy, walletConnected }: Props) {
             <span style={s.currency}>USDC</span>
           </div>
           <button
-            style={walletConnected ? s.buyBtn : s.buyBtnDisabled}
+            style={agentMode ? s.buyBtnDisabled : (walletConnected ? s.buyBtn : s.buyBtnDisabled)}
             onClick={() => onBuy(product)}
-            disabled={!walletConnected}
-            title={!walletConnected ? "Connect Pera Wallet to purchase" : ""}
+            disabled={!walletConnected || !!agentMode}
+            title={agentMode ? "Disabled while AI Agent mode is active" : (!walletConnected ? "Connect Pera Wallet to purchase" : "")}
           >
-            {walletConnected ? "Buy with USDC" : "Connect wallet"}
+            {agentMode ? "BUY with AI Agent" : (walletConnected ? "Buy with USDC" : "Connect wallet")}
           </button>
         </div>
 

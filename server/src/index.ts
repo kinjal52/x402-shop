@@ -16,7 +16,7 @@ import {
 import type { Network } from "@x402-avm/core/types"; // add this import at top
 
 import { shoppingAgent } from "../agents/shoppingAgent.js";
-import { paymentTool } from "../agents/paymentTool.js";
+import { paymentTool, getAgentAddress } from "../agents/paymentTool.js";
 
 initDb();
 
@@ -272,20 +272,51 @@ app.post("/api/agent/plan", async (c) => {
 // PHASE 5: POST /api/agent/approve
 app.post("/api/agent/approve", async (c) => {
   const { productIds } = await c.req.json();
-  // Server-side guard before executing
   if (!Array.isArray(productIds)) return c.json({ error: "Invalid payload" }, 400);
+  if (productIds.length === 0) return c.json({ error: "No products selected" }, 400);
 
-  const results = [];
-  for (const id of productIds) {
-    try {
-      const result = await paymentTool.execute({ productId: id });
-      results.push(result);
-    } catch (err: any) {
-      results.push({ success: false, error: err.message });
-    }
+  const products = productIds
+    .map((id: string) => db.prepare("SELECT * FROM products WHERE id = ?").get(id) as any)
+    .filter(Boolean);
+
+  if (products.length === 0) return c.json({ error: "No valid products found" }, 400);
+
+  const totalCost = products.reduce((sum: number, p: any) => sum + p.price_usd, 0);
+
+  try {
+    const result = await paymentTool.batchExecute({ productIds, totalCost });
+    const txId = String(result.txId || "");
+    const buyerAddress = String(result.buyerAddress || "");
+
+    const orders = products.map((product: any) => {
+      const orderId = uuidv4();
+      const downloadToken = uuidv4();
+      db.prepare(`
+        INSERT INTO orders (id, product_id, buyer_address, amount_usdc, status, download_token, tx_id)
+        VALUES (?, ?, ?, ?, 'completed', ?, ?)
+      `).run(orderId, String(product.id), buyerAddress, Number(product.price_usd), downloadToken, txId);
+      return {
+        productId: product.id,
+        productName: product.name,
+        amountPaid: `$${product.price_usd.toFixed(2)} USDC`,
+        downloadToken,
+        downloadUrl: `/api/download/${downloadToken}`,
+      };
+    });
+
+    return c.json({
+      success: true,
+      txId,
+      totalCost: `$${totalCost.toFixed(2)} USDC`,
+      fromAddress: getAgentAddress(),
+      toAddress: PAY_TO,
+      products: orders,
+      message: `Batch payment of $${totalCost.toFixed(2)} USDC confirmed on Algorand Testnet!`,
+    });
+  } catch (err: any) {
+    console.error("[AUDIT] Batch payment failed:", err.message);
+    return c.json({ success: false, error: err.message });
   }
-
-  return c.json({ results });
 });
 
 const PORT = parseInt(process.env.PORT || "3001");
