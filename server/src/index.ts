@@ -284,7 +284,10 @@ app.post("/api/agent/approve", async (c) => {
   const totalCost = products.reduce((sum: number, p: any) => sum + p.price_usd, 0);
 
   try {
-    const result = await paymentTool.batchExecute({ productIds, totalCost });
+    const result = await paymentTool.batchExecute({
+      products: products.map((p: any) => ({ id: p.id, name: p.name, price_usd: p.price_usd })),
+      totalCost,
+    });
     const txId = String(result.txId || "");
     const buyerAddress = String(result.buyerAddress || "");
 

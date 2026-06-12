@@ -10,11 +10,19 @@ export const shoppingAgent = {
     
     // 2. Get Recommendations
     const productIds = await recommendationAgent.run(JSON.stringify(intent));
+
+    if (!productIds || productIds.length === 0) {
+      throw new Error(
+        `No books are available within your specified budget of $${intent.budget}. Please increase your budget and try again.`
+      );
+    }
     
     // 3. Guard constraints
     const validation = BudgetGuard.validate(productIds, intent.budget);
     if (!validation.valid) {
-      throw new Error(`Budget Guard rejected plan: ${validation.error}`);
+      throw new Error(
+        `No books are available within your specified budget of $${intent.budget}. Please increase your budget and try again.`
+      );
     }
 
     return {

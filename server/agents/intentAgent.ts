@@ -3,6 +3,7 @@ export interface IntentOutput {
   level: string;
   budget: number;
   maxBooks: number;
+  specificBook?: string;
 }
 
 export const intentAgent = {
@@ -14,8 +15,10 @@ export const intentAgent = {
 
     const systemPrompt = `
       Extract shopping intent from the user's prompt.
-      Return strictly a JSON object matching: { "topics": string[], "level": string, "budget": number, "maxBooks": number }.
-      If budget isn't specified, default to 30. If maxBooks isn't specified, default to 3.
+      Return strictly a JSON object matching: { "topics": string[], "level": string, "budget": number, "maxBooks": number, "specificBook": string | null }.
+      "specificBook" should be the exact book name if the user asks for a specific book by name, otherwise null.
+      If the user mentions a specific book name, set maxBooks to 1 and set budget to match that book's price if mentioned.
+      If budget isn't specified, default to 30. If maxBooks isn't specified, default to 3. If the user asks for a specific book by name, always set maxBooks to 1.
       Output ONLY the raw JSON object.
     `;
 

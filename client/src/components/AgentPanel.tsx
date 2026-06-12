@@ -10,9 +10,12 @@ export function AgentPanel({ onClose, walletAddress }: Props) {
   const [logs, setLogs] = useState<string[]>([]);
   const [phase, setPhase] = useState<"input" | "running" | "done" | "error">("input");
   const [txId, setTxId] = useState<string | null>(null);
+  const [purchasedBooks, setPurchasedBooks] = useState<{ name: string; cost: string }[]>([]);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const handleStart = async () => {
     setPhase("running");
+    setErrorMessage(null);
     setLogs(["🤖 Agent received request"]);
 
     try {
@@ -28,9 +31,13 @@ export function AgentPanel({ onClose, walletAddress }: Props) {
 
       const plan = planData.plan;
 
+      const bookNames = plan.products?.map((p: any) => p.name) || [];
+      setPurchasedBooks(bookNames.map((n: string) => ({ name: n, cost: "" })));
+
       setLogs(prev => [
         ...prev,
         `📚 ${plan.products?.length || 0} books identified`,
+        ...bookNames.map((n: string) => `   · ${n}`),
         `💰 Total price calculated: $${plan.totalCost?.toFixed(2)} USDC`,
         "💳 Agent account funding confirmed",
       ]);
@@ -47,9 +54,11 @@ export function AgentPanel({ onClose, walletAddress }: Props) {
 
       if (approveData.success) {
         setTxId(approveData.txId);
+        const books = approveData.products?.map((p: any) => ({ name: p.productName, cost: p.amountPaid })) || [];
+        setPurchasedBooks(books);
         setLogs(prev => [
           ...prev,
-          "✅ Purchase completed successfully",
+          ...books.map((b: any) => `✅ Purchased: ${b.name} — ${b.cost}`),
           `🔗 Transaction ID: ${approveData.txId}`,
         ]);
         setPhase("done");
@@ -57,7 +66,8 @@ export function AgentPanel({ onClose, walletAddress }: Props) {
         throw new Error(approveData.error || "Payment failed");
       }
     } catch (err: any) {
-      setLogs(prev => [...prev, `❌ Error: ${err.message}`]);
+      setErrorMessage(err.message);
+      setLogs(prev => [...prev, `❌ ${err.message}`]);
       setPhase("error");
     }
   };
@@ -126,6 +136,19 @@ export function AgentPanel({ onClose, walletAddress }: Props) {
               <div style={{ fontSize: 16, fontWeight: 600, color: '#22c55e', marginBottom: 4 }}>All done!</div>
               <div style={{ fontSize: 12, color: '#a8a8b8', marginBottom: 16 }}>Your books have been purchased successfully.</div>
 
+              {/* Purchased books list */}
+              {purchasedBooks.length > 0 && (
+                <div style={{ background: '#1a1a24', border: '1px solid #2a2a35', borderRadius: 8, padding: 16, textAlign: 'left', marginBottom: 12 }}>
+                  <div style={{ fontSize: 12, color: '#5a5a72', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 12 }}>Purchased Books</div>
+                  {purchasedBooks.map((b, i) => (
+                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 8 }}>
+                      <span style={{ color: '#e8e8f0' }}>{i + 1}. {b.name}</span>
+                      {b.cost && <span style={{ color: '#22c55e', fontWeight: 500 }}>{b.cost}</span>}
+                    </div>
+                  ))}
+                </div>
+              )}
+
               {txId && (
                 <div style={{ background: '#1a1a24', border: '1px solid #2a2a35', borderRadius: 8, padding: 16, textAlign: 'left' }}>
                   <div style={{ fontSize: 12, color: '#5a5a72', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 12 }}>USDC Transfer Details</div>
@@ -163,8 +186,18 @@ export function AgentPanel({ onClose, walletAddress }: Props) {
           {phase === "error" && (
             <div style={{ padding: 20, textAlign: 'center' }}>
               <div style={{ fontSize: 32, marginBottom: 8 }}>⚠️</div>
-              <div style={{ fontSize: 16, fontWeight: 600, color: '#ef4444', marginBottom: 4 }}>Something went wrong</div>
-              <div style={{ fontSize: 12, color: '#a8a8b8' }}>Check the activity log above for details.</div>
+              <div style={{ fontSize: 16, fontWeight: 600, color: '#ef4444', marginBottom: 4 }}>Unable to complete purchase</div>
+              {errorMessage && (
+                <div style={{ background: '#1a1a24', border: '1px solid #2a2a35', borderRadius: 8, padding: 16, textAlign: 'left', marginTop: 12 }}>
+                  <div style={{ fontSize: 13, color: '#e8e8f0', lineHeight: 1.5 }}>{errorMessage}</div>
+                </div>
+              )}
+              <button
+                style={{ marginTop: 20, background: '#1a1830', color: '#a89ae8', border: '1px solid #2d2860', borderRadius: 8, padding: '8px 20px', fontSize: 13, cursor: 'pointer' }}
+                onClick={() => setPhase("input")}
+              >
+                Try Again
+              </button>
             </div>
           )}
 

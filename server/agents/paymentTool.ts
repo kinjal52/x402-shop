@@ -19,6 +19,21 @@ export function getAgentAddress(): string {
   return String(account.addr);
 }
 
+const algodClient = new algosdk.Algodv2("", ALGOD_TESTNET);
+
+async function getUsdcBalance(address: string): Promise<number> {
+  try {
+    const res = await fetch(`${ALGOD_TESTNET}/v2/accounts/${address}`);
+    if (!res.ok) return 0;
+    const data = await res.json() as any;
+    const assets = data.assets || data.account?.assets || [];
+    const usdcAsset = assets.find((a: any) => a["asset-id"] === USDC_ASA_ID);
+    return usdcAsset ? (usdcAsset.amount / 1_000_000) : 0;
+  } catch {
+    return 0;
+  }
+}
+
 export const paymentTool = {
   name: "executeX402Payment",
   description: "Executes an autonomous x402 payment on Algorand for a specific product ID.",
@@ -49,19 +64,26 @@ export const paymentTool = {
     return { success: true, txId: data.tx_id };
   },
 
-  batchExecute: async ({ productIds, totalCost }: { productIds: string[]; totalCost: number }) => {
+  batchExecute: async ({ products, totalCost }: { products: { id: string; name: string; price_usd: number }[]; totalCost: number }) => {
     if (!account) throw new Error("Agent wallet not configured on backend.");
 
     const payToAddress = getPayToAddress();
     if (!payToAddress) throw new Error("PAY_TO_ADDRESS not set.");
-    if (productIds.length === 0) throw new Error("No products selected.");
+    if (!products || products.length === 0) throw new Error("No products selected.");
 
     const microAmount = Math.round(totalCost * 1_000_000);
     if (microAmount <= 0) throw new Error("Invalid total cost.");
 
-    console.log(`[AUDIT] Batch executing payment for ${productIds.length} products, total: ${totalCost} USDC`);
+    const balance = await getUsdcBalance(String(account.addr));
+    if (balance < totalCost) {
+      const bookList = products.map(p => `"${p.name}" ($${p.price_usd.toFixed(2)} USDC)`).join(", ");
+      throw new Error(
+        `Insufficient balance to complete this purchase. ${products.length === 1 ? "This book costs" : "These books cost"} approximately ${bookList} totaling $${totalCost.toFixed(2)} USDC, but your wallet currently holds ${balance.toFixed(2)} USDC. Please add more USDC to your wallet and try again.`
+      );
+    }
 
-    const algodClient = new algosdk.Algodv2("", ALGOD_TESTNET);
+    console.log(`[AUDIT] Batch executing payment for ${products.length} books, total: ${totalCost} USDC (balance: ${balance} USDC)`);
+
     const suggestedParams = await algodClient.getTransactionParams().do();
 
     const txn = algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({

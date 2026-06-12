@@ -2,11 +2,12 @@ import React, { useState } from "react";
 import { Header } from "./components/Header";
 import { ShopPage } from "./components/ShopPage";
 import { OrdersPage } from "./components/OrdersPage";
+import { BooksPage } from "./components/BooksPage";
 import { usePeraWallet } from "./hooks/usePeraWallet";
 
 export default function App() {
   const { wallet, connect, disconnect, getPeraInstance } = usePeraWallet();
-  const [page, setPage] = useState<"shop" | "orders">("shop");
+  const [page, setPage] = useState<"shop" | "orders" | "books">("shop");
 
   return (
     <div>
@@ -33,6 +34,9 @@ export default function App() {
         )}
         {page === "orders" && wallet.address && (
           <OrdersPage walletAddress={wallet.address} />
+        )}
+        {page === "books" && wallet.address && (
+          <BooksPage walletAddress={wallet.address} />
         )}
       </main>
     </div>

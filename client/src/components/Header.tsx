@@ -5,8 +5,8 @@ interface Props {
   wallet: WalletState;
   onConnect: () => void;
   onDisconnect: () => void;
-  page: "shop" | "orders";
-  onPageChange: (p: "shop" | "orders") => void;
+  page: "shop" | "orders" | "books";
+  onPageChange: (p: "shop" | "orders" | "books") => void;
 }
 
 function CopyAddress({ address }: { address: string }) {
@@ -79,6 +79,13 @@ export function Header({ wallet, onConnect, onDisconnect, page, onPageChange }: 
             onClick={() => onPageChange("shop")}
           >
             Shop
+          </button>
+          <button
+            style={{ ...s.navBtn, ...(page === "books" ? s.navActive : {}) }}
+            onClick={() => onPageChange("books")}
+            disabled={!wallet.connected}
+          >
+            My Books
           </button>
           <button
             style={{ ...s.navBtn, ...(page === "orders" ? s.navActive : {}) }}
